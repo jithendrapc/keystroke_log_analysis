@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Enter Platform</title>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+</head>
+<body>
+  <div class="w3-container">
+    <h1>Welcome to the Keystroke Log Analysis Test Platform</h1>
+    <p>Click the button below to enter the test.</p>
+    <button class="w3-button w3-green" id="enter">Enter</button>
+
+  </div>
+</body>
+
+
+<script>
+    let enter = document.getElementById('enter')
+    enter.addEventListener('click', function() {
+        
+        window.open('http://192.168.0.106:5000/home');
+        
+    });
+
+</script>
+</html>

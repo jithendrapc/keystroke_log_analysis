@@ -1,0 +1,15 @@
+pandas
+numpy
+seaborn
+tqdm
+matplotlib
+scikit-learn
+scipy
+dataclasses
+catboost
+xgboost
+lightgbm
+dill
+ipyleaflet
+flask_cors
+-e .
