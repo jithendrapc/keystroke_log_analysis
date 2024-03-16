@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Keystroke Logging</title>
+    <link rel="stylesheet" href="static/w3.css" />
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f7f7f7;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .w3-container {
+        margin-bottom: 20px;
+      }
+
+      .w3-card {
+        background-color: #fff;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        padding: 8px;
+        border-radius: 8px;
+        cursor: pointer;
+        border: 2px solid;
+        border-color: #009688;
+        box-sizing: border-box;
+      }
+
+      .w3-row {
+        display: flex;
+      }
+
+      .w3-col {
+        flex: 1;
+        box-sizing: border-box;
+      }
+
+      h1 {
+        color: #009688;
+      }
+
+      p {
+        color: #333;
+        line-height: 1.6;
+      }
+
+      .form-label {
+        display: block;
+        margin-bottom: 8px;
+        color: #009688;
+        font-weight: bold;
+      }
+
+      .form-input {
+        width: 100%;
+        padding: 12px;
+        box-sizing: border-box;
+        margin-bottom: 20px;
+        border: 1px solid #009688;
+        border-radius: 6px;
+        transition: border-color 0.3s ease;
+      }
+
+      .form-input:focus {
+        border-color: #00796b;
+      }
+
+      .form-button {
+        background-color: #009688;
+        color: white;
+        padding: 12px 20px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+      }
+
+      .form-button:hover {
+        background-color: #00796b;
+      }
+
+      #liveCamera {
+        width: 200px;
+        height: 125px;
+        border-radius: 8px;
+        cursor: pointer;
+        border: 5px solid;
+        border-color: #009688;
+        box-sizing: border-box;
+      }
+
+      #score {
+        color: #27ae60;
+        font-weight: bold;
+        font-size: 1.2em;
+      }
+
+      #counter {
+        color: #e74c3c;
+        font-weight: bold;
+        font-size: 1.5em;
+      }
+
+      #submitBtn,
+      #endBtn,
+      #startBtn,
+      #closeBtn {
+        padding: 10px 20px;
+        background-color: #009688;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+      }
+
+      #submitBtn:hover,
+      #endBtn:hover,
+      #startBtn:hover,
+      #closeBtn:hover {
+        background-color: #00796b;
+      }
+
+      #submitBtn:disabled,
+      #endBtn:disabled,
+      #startBtn:disabled,
+      #closeBtn:disabled {
+        background-color: #aaa;
+        color: #666;
+        cursor: not-allowed;
+        display: none;
+      }
+    </style>
+     <!--  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.6.0/dist/tf.js"></script> -->
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
+    
+    <!-- You must explicitly require a TF.js backend if you're not using the TF.js union bundle. -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-detection"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection"></script>
+
+  
+  </head>
+  <body>
+    <div class="w3-container w3-card">
+      <div class="w3-row">
+        <div class="w3-left">
+          <div class="w3-col s-8">
+            <h1>
+              Keystroke Log Analysis --- (Linking Writing Process to Writing
+              Quality)
+            </h1>
+            <div class="w3-card">
+              <span class="w3-text-indigo">Name:</span> {{data.Name}} <br>
+              <span class="w3-text-indigo">Registration No:</span>{{data.reg_id}}<br>
+              <span class="w3-text-green">Time Left: <span id="counter">30:00</span></span>
+            </div>
+          </div>
+        </div>
+        <div class="w3-right">
+          <div class="w3-col s-4" style="margin-left: 100px; margin-top: 30px">
+            <video id="liveCamera" autoplay playsinline></video>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="w3-card w3-form">
+      <form action="/predict_datapoint" method="post">
+        <div class="w3-row">
+          <div class="w3-col s-6">
+            <label for="container prompt" class="form-label"><h3>Prompt</h3></label>
+            <div class="w3-container prompt w3-card w3-white" style="width: 425px; height: 450px; overflow: auto">
+              <p>
+                Question
+                .............................................................................................................................................................
+                .........................................................................................................................
+              </p>
+              <h6>Instructions</h6>
+              <p>1. Write at least 200 words.</p>
+              <p>2. Write at least 3 paragraphs.</p>
+              <p>3. Time Limit is 30 minutes.</p>
+            </div>
+          </div>
+          <div class="w3-col s-6">
+            <label for="text-area-container" class="form-label"><h3>Enter your response:</h3></label>
+            <div class="w3-container text-area-container w3-card w3-white" style="width: 1000px; height: 450px">
+              <textarea
+                id="textArea"
+                rows="16"
+                cols="130"
+                placeholder="Click start to begin the test."
+                name="keystroke_logs"
+                disabled="true"
+                onselectstart="return false"
+                onpaste="return false;"
+                onCopy="return false"
+                onCut="return false"
+                onDrag="return false"
+                onDrop="return false"
+                autocomplete="off"
+              ></textarea>
+              <input id="startBtn" type="submit" value="Start" class="w3-button w3-green" required disabled="true" />
+              <input class="w3-button w3-green" id="submitBtn" type="submit" value="Submit" required disabled="true" />
+              <input id="closeBtn" type="submit" value="Exit" class="w3-button w3-red" required />
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+    <br>
+    <div class="w3-container w3-card">
+      <div class="w3-row">
+        <div class="w3-col s-4">
+          <div class="w3-container prompt w3-card w3-white">
+            <h4>The evaluated score is <span id="score"></span></h4>
+          </div>
+        </div>
+        <div class="w3-col s-4">
+          <div class="w3-container prompt w3-card w3-white">
+            <video id="screen" width="250" height="250" style="display: none" autoplay ></video>
+          </div>
+        </div>
+        <div class="w3-col s-4">
+          <div class="w3-container prompt w3-card w3-white">
+            <canvas id="capturedImage" width="250" height="250" style="display: none" ></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <div class='w3-card'>
+      <div class="w3-card blend-shapes">
+        <ul class="w3-ul w3-hoverable blend-shapes-list" id="image-blend-shapes"></ul>
+      </div>
+      <br>
+      <div class="w3-card blend-shapes">
+        <ul class="w3-ul w3-hoverable blend-shapes-list" id="image-blend-shapes1"></ul>
+      </div>
+   </div>
+    <script type="module">
+
+          const keyboardLayout = {
+            left: ['Tab', 'CapsLock', 'Shift', 'Control', 'Alt', 'Windows', 'Fn', 'A', 'S', 'D', 'Q', 'W', 'E', 'Z', 'X', 'C', 'a', 's', 'd', 'q', 'w', 'e', 'z', 'x', 'c','1','2','3','4','!','@','#','$'],
+            right: ['Enter', 'Backspace', 'Delete', 'Shift', 'Control', 'Alt', 'Windows', 'Up', 'Down', 'Left', 'Right',  'I', 'H','L','l' ,'P','p', 'K','k','i', 'h','9','0','(',')'],
+            center: ['Space', 'B','b','n','m','r','t','f','g','v','c','u','y','h', 'N', 'M', 'R', 'T', 'F', 'G', 'V', 'C', 'U', 'Y', 'H','J', ',', '.', 'b', 'n', 'm','5','6','7','8','%','^','&','*']
+          };
+          let screen_pixels;
+          let screen_size;
+          let cam_pixels;
+          let frame_rate;
+          const video = document.getElementById('liveCamera');
+          const canvas = document.getElementById('capturedImage');
+          let screen = document.getElementById('screen');
+          const ctx = canvas.getContext('2d',{ willReadFrequently: true });
+          let constraintObj = {
+              audio : true,
+              video : {
+                facingMode : "user",
+                width: {min: 640 , ideal : 1280, max: 1920}, // ideal 1280
+                height : {min: 480 , ideal: {{data.cam_pixels.split('X')[1]}} , max: 1080}, // ideal 720
+                frameRate: { ideal: {{data.frame_rate}}, max: 30 }
+              }
+            };
+
+          let displayMediaOptions = {
+              video: {
+                displaySurface: "browser",
+              },
+              audio: {
+                suppressLocalAudioPlayback: false,
+              },
+              preferCurrentTab: false,
+              selfBrowserSurface: "exclude",
+              systemAudio: "include",
+              surfaceSwitching: "include",
+              monitorTypeSurfaces: "include",
+            };
+
+          let score = document.getElementById('score');
+          let keystrokeLog = []; // Initialize an array to store keystroke logs
+          let directionLog = [];
+          let landmarklog1 = [];
+          let landmarklog2 = [];
+          let id;
+          let reg_id;
+          let name;
+          let email_id;
+          let eventId = 1; // Initialize event ID
+          let eventid = 1;
+          let previousText = '';
+          let startTime = 0;
+          let wordCount = 0;
+          let paragraphCount = 0;
+          let upTime;
+          let actionTime;
+          let position;
+          let newText;
+          let words;
+          let paragraphs;
+          let textChange='';
+          let activity;
+          let timer;
+          let xEye;
+          let yEye;
+          let xHead;
+          let yHead;
+          let actual_dir;
+          let pred_dir;
+          let marks ;
+
+          let textArea = document.getElementById('textArea');
+          let submitBtn = document.getElementById('submitBtn');
+          let startBtn = document.getElementById('startBtn');
+          let closeBtn = document.getElementById('closeBtn');
+          let capturedImage = document.getElementById('capturedImage');
+
+
+          let downTime = 0; // Define downTime variable outside the event listener
+          let logEntry;
+          let dirEntry;
+          let landmarkEntry1;
+          let landmarkEntry2;
+          let mainWindow;
+          let stream;
+          let screenStream;
+          let mediaRecorder_screen;
+          let mediaRecorder;
+          let chunks = [];
+          let screen_chunks = [];
+          let blob;
+          let screen_blob;
+          let videoUrl;
+
+          const modelPath_eye = 'static/models/eye/model.json';
+          const modelPath_head = 'static/models/head/model.json';
+          let eyegazeModel;
+          let headgazeModel;
+          let landmark_model;
+          let detector;
+          let faces;
+          let faces_1;
+          let faces_2;
+          const detectorConfig = {
+            runtime: 'tfjs',
+            refineLandmarks : true
+          };
+          const estimationConfig = {flipHorizontal: false};
+
+          async function load_model()  {
+          landmark_model  = await faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh;
+          detector =  await faceLandmarksDetection.createDetector(landmark_model, detectorConfig);
+          console.log("landmark model loaded."); }
+         
+
+
+          import vision from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+          const { FaceLandmarker, FilesetResolver, DrawingUtils } = vision;
+          const imageBlendShapes = document.getElementById("image-blend-shapes");
+          const imageBlendShapes1 = document.getElementById("image-blend-shapes1");
+          
+          let faceLandmarker;
+          let runningMode = "IMAGE";
+          let faceLandmarkerResult;
+          let imageData;
+          
+          async function createFaceLandmarker() {
+            const filesetResolver = await FilesetResolver.forVisionTasks(
+              "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+            );
+            faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
+              baseOptions: {
+                modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
+                delegate: "CPU"
+              },
+              outputFaceBlendshapes: true,
+              runningMode,
+              numFaces: 1
+            });
+           console.log("Face Landmarker model loaded......")
+          }
+          
+        
+          
+          
+          async function drawBlendShapes(el,e2, blendShapes, faces) {
+            if (!blendShapes.length) {
+              return;
+            }
+
+            if (!faces.length) {
+              return;
+            }
+            
+            console.log(faces[0])
+            console.log(blendShapes[0]);
+            
+            let htmlMaker = "";
+            faces_2 = blendShapes[0].categories;
+           await blendShapes[0].categories.map((shape) => {
+              htmlMaker += `
+                <li class="blend-shapes-item">
+                  <span class="w3-bar-item w3-text-blue">${shape.displayName || shape.categoryName}</span>
+                  <span class="w3-bar-item w3-text-green">------------------------</span>
+                  <span class="w3-bar-item w3-text-blue" style="width: calc(${+shape.score * 100}% - 120px)">${(+shape.score).toFixed(4)}</span>
+                </li>
+              `;
+            });
+          
+            el.innerHTML = htmlMaker;
+
+
+            htmlMaker = "";
+            let i = 0;
+            faces_1 = faces[0].keypoints;
+            await faces[0].keypoints.map((point) => {
+              htmlMaker += `
+                <li class="blend-shapes-item">
+                  <span class="w3-bar-item w3-text-blue">Point: ${i}</span>
+                  <span class="w3-bar-item  w3-text-green">X: ${point.x}</span>
+                  <span class="w3-bar-item w3-text-blue">Y: ${point.y} </span>
+                  <span class="w3-bar-item  w3-text-green">Z: ${point.z}</span>
+                  <span class="w3-bar-item w3-text-blue">Category: ${point.name}</span>
+                </li>
+              `;
+              i=i+1;
+            });
+          
+            e2.innerHTML = htmlMaker;
+          }
+
+
+          async function load_gaze() {
+          try {
+          tf.loadGraphModel(modelPath_eye).then((model) => {
+              eyegazeModel = model;
+              //console.log(gazeModel.summary());
+              console.log('Eye Model loaded successfully.');
+          }).catch(error => {
+              console.error('Error loading the eye model:', error);
+          });
+          } catch (error) {
+              console.error('Error loading the eye model:', error);
+          }
+
+
+          try {
+            tf.loadGraphModel(modelPath_head).then((model) => {
+                headgazeModel = model;
+                //console.log(gazeModel.summary());
+                console.log('Head Model loaded successfully.');
+            }).catch(error => {
+                console.error('Error loading the head model:', error);
+            });
+            } catch (error) {
+                console.error('Error loading the head model:', error);
+            }
+
+          }
+
+
+          async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia(constraintObj);
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                  video.play();
+                  mediaRecorder = new MediaRecorder(stream);
+                  mediaRecorder.start();
+                  mediaRecorder.ondataavailable = function (ev) {
+                    chunks.push(ev.data);
+                  };
+              };
+
+
+
+            } catch (error) {
+                console.error('Error accessing the camera:', error);
+            }
+          }
+
+          async function stopCamera() {
+            if (stream) {
+                  mediaRecorder.stop();
+                  mediaRecorder.onstop = function () {
+                      blob = new Blob(chunks, { type: 'video/webm;' });
+                      chunks = [];
+                    };
+
+                  const tracks = stream.getTracks();
+                  tracks.forEach(track => track.stop());
+                  video.srcObject = null;
+            }
+        }
+
+
+
+          async function captureImage() {
+            try {
+                // Draw the current video frame on the canvas
+                await ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                canvas.style.display = 'block';
+            } catch (error) {
+                console.error('Error capturing image:', error);
+            }
+
+            try {
+              let img = await tf.browser.fromPixels(canvas);
+              let smallImg = tf.image.resizeBilinear(img, [250, 250]);
+              smallImg = tf.div(smallImg,tf.scalar(255.0));
+
+
+              let resized = tf.cast(smallImg, 'float32');
+              let t4d = tf.tensor4d(Array.from(resized.dataSync()),[1,250,250,3]);
+              let predictions_eye = await eyegazeModel.predict(t4d).dataSync();
+
+              xEye = predictions_eye[0];
+              yEye = predictions_eye[1];
+              console.log('Eye X Value:', xEye);
+              console.log('Eye Y Value:', yEye);
+
+              let predictions_head = await headgazeModel.predict(t4d).dataSync();
+      
+              xHead = predictions_head[0];
+              yHead = predictions_head[1];
+              console.log('Head X Value:', xHead);
+              console.log('Head Y Value:', yHead);
+
+              for (const key in keyboardLayout) {
+                console.log(key);
+                console.log(keyboardLayout[key].includes(textChange.charAt(textChange.length - 1)));
+                if (keyboardLayout[key].includes(textChange.charAt(textChange.length - 1))) {
+                  actual_dir = key;
+                }
+              }
+
+
+
+              faces = await detector.estimateFaces(img, estimationConfig);
+              console.log(faces);
+
+
+              imageData = await ctx.getImageData(0, 0, canvas.width, canvas.height);
+              faceLandmarkerResult = await faceLandmarker.detect(imageData);
+              await drawBlendShapes(imageBlendShapes,imageBlendShapes1, faceLandmarkerResult.faceBlendshapes, faces);
+
+            } catch (error) {
+              console.error('Error processing the image:', error);
+            }
+
+        }
+
+
+        async function startCapture() {
+
+          try {
+             screen.style.display = 'block';
+             screenStream = await navigator.mediaDevices.getDisplayMedia(displayMediaOptions);
+             screen.srcObject = screenStream;
+             screen.onloadedmetadata = () => {
+               startBtn.disabled = false;
+               screen.play();
+               mediaRecorder_screen = new MediaRecorder(screenStream);
+               mediaRecorder_screen.start();
+               mediaRecorder_screen.ondataavailable = function (ev) {
+                 screen_chunks.push(ev.data);
+               };
+          }
+
+
+        } catch (err) {
+            console.error(err);
+          }
+          }
+
+
+          document.addEventListener('DOMContentLoaded', function () {
+            load_model();
+            load_gaze();
+            createFaceLandmarker();
+            startCapture();
+            startCamera();
+            screen_pixels = "{{data.screen_pixels}}";
+            screen_size = "{{data.screen_size}}";
+            cam_pixels = "{{data.cam_pixels}}";
+            reg_id = "{{data.reg_id}}";
+            name = "{{data.Name}}";
+            email_id = "{{data.email_id}}"
+            frame_rate = "{{data.frame_rate}}"
+            console.log(screen_pixels);
+            console.log(cam_pixels);
+            console.log(screen_size);
+            console.log(reg_id);
+            console.log(name);
+            console.log(email_id);
+            console.log(frame_rate);
+              });
+
+
+
+       async function stopCapture(evt) {
+
+          if (screenStream) {
+              mediaRecorder_screen.stop();
+              mediaRecorder_screen.onstop = function () {
+                  const concatenatedArray = new Uint8Array(screen_chunks.reduce((acc, chunk) => acc.concat(Array.from(new Uint8Array(chunk))), []));
+                  screen_blob = new Blob([concatenatedArray], { type: 'video/webm' });
+                  //screen_blob = new Blob(screen_chunks, { type: 'video/mp4;' });
+                  screen_chunks = [];
+                };
+
+              let tracks = screenStream.getTracks();
+              tracks.forEach(track => track.stop());
+              screen.srcObject = null;
+              screen.style.display = 'none';
+        }
+
+        }
+
+
+        function submitform(event) {
+          // Ensure that the values are added to the FormData object
+          event.preventDefault();
+          stopCamera();
+          stopCapture();
+          const formData = new FormData(document.querySelector('form'));
+          formData.append('jsonobject', JSON.stringify(keystrokeLog));
+          formData.append('jsonobject_dir', JSON.stringify(directionLog));
+          formData.append('jsonobject_landmark1', JSON.stringify(landmarklog1));
+          formData.append('jsonobject_landmark2', JSON.stringify(landmarklog2));
+          formData.append('text', JSON.stringify(textArea.value));
+          var fileOfBlob = new File([blob], 'video.webm', { type: 'video/webm' });
+          formData.append("video", fileOfBlob);
+          var fileOfBlobScreen = new File([screen_blob], 'screen.webm', { type: 'video/webm' });
+          formData.append("screen", fileOfBlobScreen);
+
+          fetch('/predict_datapoint', {
+            method: 'POST',
+            body: formData,
+          })
+            .then(response => response.json())
+            .then(data => {
+              console.log(data);
+              score.innerText = data.result;
+              marks = data.result;
+            })
+            .catch(error => {
+              console.error('Error:', error);
+            });
+
+
+            textArea.value = "Test has already taken....................";
+            textArea.disabled = true;
+            startBtn.style.display = 'none';
+            submitBtn.style.display = 'none';
+            capturedImage.style.display = 'none';
+            closeBtn.disabled = false;
+            closeBtn.style.display = 'block';
+            console.log(keystrokeLog);
+            console.log(directionLog);
+            console.log(landmarklog1);
+            console.log(landmarklog2);
+
+        }
+
+
+        startBtn.addEventListener('click', function(event) {
+          event.preventDefault(); // Prevent the default form submission behavior
+          //startCamera();
+          //startCapture();
+          textArea.placeholder = "Start typing here....................";
+          textArea.disabled = false;
+          submitBtn.disabled = false;
+          startBtn.disabled = true;
+          closeBtn.disabled = true;
+          closeBtn.style.display = 'none';
+
+
+          let count = 60; // 30 minutes in seconds
+
+          timer = setInterval(function() {
+            count--;
+            let mins = Math.floor(count / 60);
+            let secs = count % 60;
+            let str = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            document.getElementById('counter').innerText = str;
+
+            if (count <= 0) {
+              clearInterval(timer);
+              document.getElementById('counter').innerText = "Time's up!";
+              submitform(event);
+              alert("Time is up.Test was submitted automatically.")
+            }
+          }, 1000);
+        });
+
+
+
+        closeBtn.addEventListener('click', function(event) {
+
+          const result = window.confirm("Do you want to close the window?");
+          if (result === true) {
+              event.preventDefault();
+              alert("Window is closing.Your marks are "+marks);
+              console.log('window is closed');
+              window.close();
+          }
+          else event.preventDefault();
+      });
+
+
+
+
+
+          submitBtn.addEventListener('click', function(event) {
+
+              const result = window.confirm("Do you want to finish the test?");
+              if (result === true) {
+                  event.preventDefault();
+                  submitform(event);
+                  clearInterval(timer);
+                  document.getElementById('counter').innerText = "";
+                  document.getElementById('counter').style.display = 'none';
+              }
+              else event.preventDefault();
+
+          });
+
+
+
+
+
+
+          textArea.addEventListener('keydown', async function(event) {
+            downTime = new Date().getTime(); // Record the time when the key is pressed
+            await captureImage();
+          });
+
+          textArea.addEventListener('keyup',async function(event) {
+            upTime = new Date().getTime(); // Record the time when the key is released
+            actionTime = upTime - downTime; // Calculate the duration of the operation
+
+            position = {
+              x: textArea.selectionStart, // Get cursor position
+              y: textArea.selectionEnd
+            };
+
+            newText = textArea.value; // Get the current text content
+
+            // Calculate word count
+            words = newText.trim().split(/\s+/);
+            wordCount = words.length;
+            //dis_word = new Set(words);
+            let dis_word = words;
+            let dis_word_len = dis_word.length;
+            // Check paragraph count
+            paragraphs = newText.split('\n\n');
+            paragraphCount = paragraphs.length;
+
+            // Check constraints
+          if (dis_word_len >= 200 && paragraphCount >= 3 && actionTime <= 30 * 60 * 1000) {
+          submitBtn.disabled = false; // Enable submit button
+            } else {
+              submitBtn.disabled = true; // Disable submit button
+            }
+            submitBtn.disabled = false;
+
+             textChange = ''; // Initialize textChange as an empty string
+             activity = 'Input'; // Default activity is input
+
+            if (newText.length > previousText.length) {
+              textChange = newText.slice(previousText.length);
+            } else if (newText.length < previousText.length) {
+              textChange = previousText.slice(newText.length);
+              activity = 'Remove/Cut';
+            } else {
+              textChange = 'NoChange';
+              activity = 'Nonproduction';
+            }
+
+            // Update previousText with the current text content
+            previousText = newText;
+
+
+           logEntry = {
+              id: reg_id,
+              event_id: eventid,
+              down_time: downTime,
+              up_time: upTime,
+              action_time: actionTime,
+              activity: activity,
+              down_event: 'keypress',
+              up_event:'keypress',
+              text_change:textChange,
+              cursor_position: position,
+              word_count: wordCount,
+            };
+
+           dirEntry = {
+            id : reg_id,
+            event_id: eventid,
+            key : textChange,
+            xEye : xEye,
+            yEye : yEye,
+            xHead : xHead,
+            yHead : yHead,
+            actual_dir : actual_dir
+           }
+
+          landmarkEntry1 = {
+            id: reg_id,
+            event_id: eventid,
+            key: textChange,
+            points: faces_1
+           }
+
+          landmarkEntry2 = {
+            id: reg_id,
+            event_id: eventid,
+            key: textChange,
+            categories: faces_2
+           }
+
+            await directionLog.push(dirEntry);
+            console.log(dirEntry);
+            await keystrokeLog.push(logEntry);
+            console.log(logEntry);
+            await landmarklog1.push(landmarkEntry1);
+            console.log(landmarklog1);
+            await landmarklog2.push(landmarkEntry2);
+            console.log(landmarklog2);
+            eventid++;
+
+          });
+
+
+
+
+    </script>
+  </body>
+</html>

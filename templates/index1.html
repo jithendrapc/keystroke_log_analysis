@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Keystroke Log Analysis Test Platform</title>
+  <link rel="stylesheet" href="static/w3.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f2f2f2;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #ffffff;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+    }
+
+    h1 {
+      color: #009688;
+    }
+
+    p {
+      color: #333333;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 8px;
+      color: #009688;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 10px;
+      box-sizing: border-box;
+      margin-bottom: 16px;
+      border: 1px solid #009688;
+      border-radius: 4px;
+    }
+
+    .form-button {
+      background-color: #009688;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .form-button:hover {
+      background-color: #00796b;
+    }
+  </style>
+</head>
+<body>
+
+  <form id='form' action='/home' method='post' target='_blank' class="w3-container container">
+    <h1>Welcome to the Keystroke Log Analysis Test Platform</h1>
+    <p>Enter details and click the button below to give the test.</p>
+
+    <label for='Name' class="form-label">Enter your name:</label>
+    <input type='text' name='Name' id='Name' class="form-input" value="" required>
+
+    <label for='reg_id' class="form-label">Enter your registration number:</label>
+    <input type='text' name='reg_id' id='reg_id' class="form-input" value="" required>
+
+    <label for='email_id' class="form-label">Enter your email-id:</label>
+    <input type='text' name='email_id' id='email_id' class="form-input" value="" required>
+
+    <label for='cam_pixels' class="form-label">Enter your web camera resolution in pixels ('Enter in format 1920X1080'):</label>
+    <input type='text' name='cam_pixels' id='cam_pixels' class="form-input" value="1920X1080" required>
+
+    <label for='screen_pixels' class="form-label">Enter your screen resolution in pixels ('Enter in format 1920X1080'):</label>
+    <input type='text' name='screen_pixels' id='screen_pixels' class="form-input" value="1920X1080" required>
+
+    <label for='screen_size' class="form-label">Enter your screen size in inches ('Enter in format 15.6'):</label>
+    <input type='text' name='screen_size' id='screen_size' class="form-input" value="15.6" required>
+
+    <label for='frame_rate' class="form-label">Enter your camera frame rate in fps:</label>
+    <input type='text' name='frame_rate' id='frame_rate' class="form-input" value="" required>
+
+    <button class="w3-button w3-green form-button" id="enter" type='submit'>Enter</button>
+  </form>
+
+</body>
+</html>

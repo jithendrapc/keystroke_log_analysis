@@ -1,0 +1,16 @@
+<!-- admin_auth/templates/admin_auth/dashboard.html -->
+<form method="post" action=''>
+    {% csrf_token %}
+    <label for="paragraph">Paragraph:</label>
+    <textarea name="paragraph" rows="4" cols="50" required></textarea><br>
+    <label for="mark">Mark:</label>
+    <input type="text" name="mark" required><br>
+    <input type="submit" value="Submit">
+</form>
+{% if messages %}
+    <ul class="messages">
+        {% for message in messages %}
+            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
+{% endif %}

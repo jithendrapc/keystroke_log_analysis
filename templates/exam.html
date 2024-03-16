@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Face Landmarker</title>
+</head>
+<body>
+  <section id="demos" class="invisible">
+    <div class="detectOnClick">
+      <video id="webcam" width="500px" height='500px' autoplay playsinline muted></video>
+    </div>
+    <div class="blend-shapes">
+      <ul class="blend-shapes-list" id="image-blend-shapes"></ul>
+    </div>
+    <div>
+      <input type="text" id="captureTrigger" placeholder="Press a key to capture image from camera">
+    </div>
+  </section>
+
+  <script type='module'>
+
+    import vision from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+    const { FaceLandmarker, FilesetResolver, DrawingUtils } = vision;
+    const demosSection = document.getElementById("demos");
+    const imageBlendShapes = document.getElementById("image-blend-shapes");
+    const captureTrigger = document.getElementById("captureTrigger");
+
+    let faceLandmarker;
+    let runningMode = "IMAGE";
+    let webcamRunning = false;
+    const videoWidth = 480;
+
+    async function createFaceLandmarker() {
+      const filesetResolver = await FilesetResolver.forVisionTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+      );
+      faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
+        baseOptions: {
+          modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
+          delegate: "GPU"
+        },
+        outputFaceBlendshapes: true,
+        runningMode,
+        numFaces: 1
+      });
+      demosSection.classList.remove("invisible");
+    }
+    createFaceLandmarker();
+
+    const videoElement = document.getElementById("webcam");
+    const constraints = {
+      video: true
+    };
+
+    captureTrigger.addEventListener('keydown', async (event) => {
+      if (event.key === 'Enter') {
+        await handleClick();
+      }
+    });
+
+    async function handleClick() {
+      if (!faceLandmarker) {
+        console.log("Wait for faceLandmarker to load before clicking!");
+        return;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = "500px";
+      canvas.height = "500px";
+
+      canvas.getContext('2d').drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+      const imageDataURL = canvas.toDataURL('image/jpeg');
+      const img = document.createElement('img');
+      img.src = imageDataURL;
+
+      const faceLandmarkerResult = await faceLandmarker.detect(img);
+      drawBlendShapes(imageBlendShapes, faceLandmarkerResult.faceBlendshapes);
+    }
+
+    navigator.mediaDevices.getUserMedia(constraints)
+    .then((stream) => {
+      videoElement.srcObject = stream;
+    });
+
+    function drawBlendShapes(el, blendShapes) {
+      if (!blendShapes.length) {
+        return;
+      }
+      let htmlMaker = "";
+      blendShapes[0].categories.map((shape) => {
+        htmlMaker += `
+          <li class="blend-shapes-item">
+            <span class="blend-shapes-label">${
+              shape.displayName || shape.categoryName
+            }</span>
+            <span class="blend-shapes-value" style="width: calc(${
+              +shape.score * 100
+            }% - 120px)">${(+shape.score).toFixed(4)}</span>
+          </li>
+        `;
+      });
+      el.innerHTML = htmlMaker;
+    }
+  </script>
+</body>
+</html>

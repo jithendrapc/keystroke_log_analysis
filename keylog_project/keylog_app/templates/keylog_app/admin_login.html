@@ -1,0 +1,16 @@
+<!-- admin_auth/templates/admin_auth/login.html -->
+<form method="post" action="{% url 'admin_login_view' %}">
+    {% csrf_token %}
+    <label for="admin_id">Admin ID:</label>
+    <input type="text" name="admin_id" required><br>
+    <label for="password">Password:</label>
+    <input type="password" name="password" required><br>
+    <input type="submit" value="Login">
+</form>
+{% if messages %}
+    <ul class="messages">
+        {% for message in messages %}
+            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
+{% endif %}

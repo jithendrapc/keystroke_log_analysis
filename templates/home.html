@@ -12,6 +12,7 @@
       margin: 0;
       padding: 20px;
     }
+    
 
     .container {
       display: inline-block;
@@ -76,6 +77,13 @@
     #jsonobject {
       display : none
       }
+    #jsonobject_dir {
+        display : none
+        }
+
+    #text {
+        display : none
+        }
     #startBtn {
         padding: 10px 20px;
         background-color: #4CAF50;
@@ -105,8 +113,21 @@
         cursor: not-allowed;
         display: none
       }
+
+      .cameraContainer {
+        position: fixed;
+        top: 10px; /* Adjust top position */
+        right: 10px; /* Adjust right position */
+        z-index: 999; /* Set z-index to make sure it stays on top */
+      }
+  
+      #liveCamera {
+        width: 300px;
+        height: 125px;
+      }
     
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0/dist/tf.min.js"></script>
 </head>
 <body>
 <form action = "/predict_datapoint" method="post">
@@ -114,9 +135,14 @@
 <div class = "w3-container">
   <div> <p>Time Remaining: <span id="counter">30:00</span></p> 
     </div>
+    <div class = "cameraContainer">
+    <div class="w3-col s6">
+      <video id="liveCamera" width="1000" height="650" autoplay></video>
+      
+      </div> </div>
   <div class = "container prompt"  style="width:300px; height:450px; overflow-y: auto">
     <h3> Prompt </h3>
-    <p> Question .............................................................................
+    <p> Question .............................................................................................................................................................
     .........................................................................................................................</p>
     <h6> Instructions </h6>
     <p> 1. Write atleast 200 words.</p>
@@ -125,11 +151,9 @@
   </div>
   <div class = 'container text-area-container ' class = "w3-card w3-white" style="width:1000px" >
   <textarea id="textArea" rows="15" cols="50" placeholder="Click start to begin the test." name="keystroke_logs" disabled=true></textarea>
-  <input id="jsonobject" name="jsonobject" type="text" value=""> 
-  <input  id='startBtn' type="submit" value="Start" class = 'w3-button w3-green' required /> 
-  <input  id='endBtn' type="submit" value="End" class = 'w3-button w3-red' required /> 
-  <input class="w3-button w3-green" id='submitBtn' type="submit" value="Evaluate" required disabled=true/>  
-  <input  id='closeBtn' type="submit" value="Close" class = 'w3-button w3-red' required />       
+  <input  id='startBtn' type="submit" value="Start" class = 'w3-button w3-green' required />  
+  <input class="w3-button w3-green" id='submitBtn' type="submit" value="Submit" required disabled=true/>  
+  <input  id='closeBtn' type="submit" value="Exit" class = 'w3-button w3-red' required />       
   </div>
   
  </form>
@@ -137,16 +161,24 @@
 
  
   <div class = 'container prompt' class = 'w3-card w3-white'>   <h4>
-    The evaluated score is <span id="score"> {% block content %} {{results}}  {% endblock %} </span>
+         The evaluated score is <span id="score"> </span>
         </h4>
       </div> 
-      
+  <div class = 'container prompt' class = 'w3-card w3-white'> 
+    <canvas id="capturedImage" width="250" height="250" style="display: none;"></canvas>
+  </div>
   </div>
 
     
   <script>
+    const video = document.getElementById('liveCamera');
+    const canvas = document.getElementById('capturedImage');
+    const ctx = canvas.getContext('2d');
+    let score = document.getElementById('score');
     let keystrokeLog = []; // Initialize an array to store keystroke logs
+    let directionLog = [];
     let eventId = 1; // Initialize event ID
+    let eventid = 1;
     let previousText = '';
     let startTime = 0;
     let wordCount = 0;
@@ -159,21 +191,64 @@
     let paragraphs;
     let textChange;
     let activity;
+    let timer;
+    let xEye;
+    let yEye;
+    let xHead;
+    let yHead;
+    let marks ;
 
     let textArea = document.getElementById('textArea');
     let submitBtn = document.getElementById('submitBtn');
+    let startBtn = document.getElementById('startBtn');
+    let closeBtn = document.getElementById('closeBtn');
+    let capturedImage = document.getElementById('capturedImage');
+    
 
     let downTime = 0; // Define downTime variable outside the event listener
     let logEntry;
+    let dirEntry;
     let mainWindow;
-    let flag = 0;
+    let stream;
 
+    const modelPath_eye = 'static/models/eye/model.json';
+    const modelPath_head = 'static/models/head/model.json';
+    let eyegazeModel;
+    let headgazeModel;
+  
+    try {
+    tf.loadGraphModel(modelPath_eye).then((model) => {
+        eyegazeModel = model;
+        //console.log(gazeModel.summary());
+        console.log('Eye Model loaded successfully.');
+    }).catch(error => {
+        console.error('Error loading the eye model:', error);
+    });
+    } catch (error) {
+        console.error('Error loading the eye model:', error);
+    }
+
+
+    try {
+      tf.loadGraphModel(modelPath_head).then((model) => {
+          headgazeModel = model;
+          //console.log(gazeModel.summary());
+          console.log('Head Model loaded successfully.');
+      }).catch(error => {
+          console.error('Error loading the head model:', error);
+      });
+      } catch (error) {
+          console.error('Error loading the head model:', error);
+      }
+    
+    
     textArea.addEventListener('keydown', function(event) {
-      if (flag == 0) downTime = new Date().getTime(); // Record the time when the key is pressed
+      downTime = new Date().getTime(); // Record the time when the key is pressed
+      captureImage();
     });
 
     textArea.addEventListener('keyup', function(event) {
-      if (flag== 0) { upTime = new Date().getTime(); // Record the time when the key is released
+       upTime = new Date().getTime(); // Record the time when the key is released
       actionTime = upTime - downTime; // Calculate the duration of the operation
 
       position = {
@@ -182,7 +257,7 @@
       };
 
       newText = textArea.value; // Get the current text content
-    }
+    
       // Calculate word count
       words = newText.trim().split(/\s+/);
       wordCount = words.length;
@@ -201,9 +276,9 @@
       }
       submitBtn.disabled = false; 
 
-       if(flag == 0) {textChange = ''; // Initialize textChange as an empty string
+       textChange = ''; // Initialize textChange as an empty string
        activity = 'Input'; // Default activity is input
-    }
+    
       if (newText.length > previousText.length) {
         textChange = newText.slice(previousText.length);
       } else if (newText.length < previousText.length) {
@@ -217,7 +292,7 @@
       // Update previousText with the current text content
       previousText = newText;
 
-    if (flag == 0) {
+    
      logEntry = {
         id: 1,
         event_id: eventId++,
@@ -231,125 +306,188 @@
         cursor_position: position,
         word_count: wordCount,
       }; 
-    }
+
+     dirEntry = {
+      id : 1,
+      event_id: eventid++,
+      key : textChange,
+      xEye : xEye,
+      yEye : yEye,
+      xHead : xHead,
+      yHead : yHead,
+     }
+      directionLog.push(dirEntry);
+      console.log(dirEntry);
       keystrokeLog.push(logEntry);
       console.log(logEntry);
 
        
     });
 
-    let timer;
-
-    startBtn.addEventListener('click', function() {
-      //const jsonData = JSON.stringify(keystrokeLog);
-      document.getElementById('textArea').placeholder = "Start typing here....................";
-      document.getElementById('textArea').disabled = false;
-      document.getElementById('submitBtn').disabled = false;
-      document.getElementById('startBtn').disabled = true; 
-      
-      let count = 1 * 60; // 30 minutes in seconds
-
-      timer = setInterval(function() {
-        count--;
-        let mins = Math.floor(count / 60);
-        let secs = count % 60;
-        let str = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        document.getElementById('counter').innerText = str;
-    
-        if (count <= 0) {
-          clearInterval(timer);
-          document.getElementById('counter').innerText = "Time's up!";
-          alert("Test submitted!");
-          document.getElementById('submitBtn').click();
-        }
-      }, 1000);
+  
 
 
-
-
-
-
-    });
+    async function startCamera() {
+      try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          video.srcObject = stream;
 
         
+          video.onloadedmetadata = () => {
+            video.play();
+        };
+          
+      } catch (error) {
+          console.error('Error accessing the camera:', error);
+      }
+    }
+
+    async function stopCamera() {
+      if (stream) {
+          const tracks = stream.getTracks();
+          tracks.forEach(track => track.stop());
+          video.srcObject = null;
+      }
+  }
 
 
-      endBtn.addEventListener('click', function() {
-        const result = window.confirm("Do you want to finish the test?");
-        if (result === true) {
-          const jsonData = JSON.stringify(keystrokeLog);
-          document.getElementById('jsonobject').value = jsonData;
-          console.log(jsonData);
-          console.log(keystrokeLog);
-          console.log('Submission performed');
+
+    async function captureImage() {
+      try {
+          // Draw the current video frame on the canvas
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          // Show the captured image
+          
+          canvas.style.display = 'block';
+      } catch (error) {
+          console.error('Error capturing image:', error);
+      }
+
+      try {
+        let img = tf.browser.fromPixels(canvas);
+        console.log(img);
+
+        let smalImg = tf.image.resizeBilinear(img, [250, 250]);
+
+        let resized = tf.cast(smalImg, 'float32');
+        let t4d = tf.tensor4d(Array.from(resized.dataSync()),[1,250,250,3]); 
+        let predictions_eye = await eyegazeModel.predict(t4d).dataSync();
+        console.log('Predictions of eye:', predictions_eye);
+        xEye = predictions_eye[0];
+        yEye = predictions_eye[1];
+        console.log('Eye X Value:', xEye);
+        console.log('Eye Y Value:', yEye);
+
+        let predictions_head = await headgazeModel.predict(t4d).dataSync();
+        console.log('Predictions of head:', predictions_head);
+        xHead = predictions_head[0];
+        yHead = predictions_head[1];
+        console.log('Head X Value:', xHead);
+        console.log('Head Y Value:', yHead);
+
+
+      } catch (error) {
+        console.error('Error processing the image:', error);
+      }
     
-          // Rest of your code remains the same
-    
-        } else {
-          flag = 1;
-          let logData = JSON.stringify(keystrokeLog);
-          logData = encodeURIComponent(logData);
-          let window1 = window.open("http://192.168.0.106:5000/?logData=" + logData);
-          window1.onload = function() {
-            let text = window1.document.getElementById('textArea');
-            text.disabled = false;
-            window1.document.getElementById('submitBtn').disabled = false;
-            window1.document.getElementById('startBtn').disabled = true;
-            text.value = textArea.value;
-    
-            // Retrieve logData from URL
-            const urlParams = new URLSearchParams(window.location.search);
-            const receivedLogData = urlParams.get('logData');
-    
-            let logEntry;
-            if (receivedLogData) {
-              try {
-                const receivedLogs = JSON.parse(decodeURIComponent(receivedLogData));
-                // Concatenate existing logs with the received logs
-                keystrokeLog = keystrokeLog.concat(receivedLogs);
-                console.log('Received logEntry:', receivedLogs);
-              } catch (error) {
-                console.error('Error parsing logData:', error);
-              }
-            } else {
-              console.error('No logData found in URL parameters');
-            }
-          };
-        }
+  }
+
+
+  function submitform(event) {
+    // Ensure that the values are added to the FormData object
+    event.preventDefault();
+    const formData = new FormData(document.querySelector('form'));
+    formData.append('jsonobject', JSON.stringify(keystrokeLog));
+    formData.append('jsonobject_dir', JSON.stringify(directionLog));
+    formData.append('text', JSON.stringify(textArea.value));
+  
+    fetch('/predict_datapoint', {
+      method: 'POST',
+      body: formData,
+    })
+      .then(response => response.json())
+      .then(data => {
+        console.log(data);
+        score.innerText = data.result;
+        marks = data.result;
+      })
+      .catch(error => {
+        console.error('Error:', error);
       });
 
-    
       
-
+      textArea.value = "Test has already taken....................";
+      textArea.disabled = true;
+      startBtn.style.display = 'none';
+      submitBtn.style.display = 'none'; 
+      capturedImage.style.display = 'none';
+      closeBtn.disabled = false;
+      closeBtn.style.display = 'block'; 
+      console.log(keystrokeLog);
+      stopCamera();
+  }
+    
+   
+  startBtn.addEventListener('click', function(event) {
+    event.preventDefault(); // Prevent the default form submission behavior
+    startCamera();
+    textArea.placeholder = "Start typing here....................";
+    textArea.disabled = false;
+    submitBtn.disabled = false;
+    startBtn.disabled = true;
+    closeBtn.disabled = true;
+    closeBtn.style.display = 'none'; 
+    
+    
+    let count = 60; // 30 minutes in seconds
   
-
-
-
-
-    submitBtn.addEventListener('click', function() {
-        const jsonData = JSON.stringify(keystrokeLog);
-        document.getElementById('jsonobject').value = jsonData;
-        console.log(jsonData)
-        console.log(keystrokeLog);
-        console.log('Submission performed');
-        document.getElementById('textArea').placeholder = "Test has already taken....................";
-        document.getElementById('startBtn').style.display = 'none';
-        document.getElementById('endBtn').style.display = 'none'; 
-        document.getElementById('submitBtn').style.display = 'none';  
-
-        //window.close();
-    });
-
-
+    timer = setInterval(function() {
+      count--;
+      let mins = Math.floor(count / 60);
+      let secs = count % 60;
+      let str = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      document.getElementById('counter').innerText = str;
   
-      closeBtn.addEventListener('click', function() {
+      if (count <= 0) {
+        clearInterval(timer);
+        document.getElementById('counter').innerText = "Time's up!";
+        submitform(event);
+        alert("Time is up.Test was submitted automatically.")
+      }
+    }, 1000);
+  });
+
         
+
+  closeBtn.addEventListener('click', function(event) {
+  
+    const result = window.confirm("Do you want to close the window?");
+    if (result === true) {
+        event.preventDefault();
+        alert("Window is closing.Your marks are "+marks);
         console.log('window is closed');
         window.close();
+    }
+    else event.preventDefault();
+});
+
+    
+
+
+
+    submitBtn.addEventListener('click', function(event) {
+       
+        const result = window.confirm("Do you want to finish the test?");
+        if (result === true) {
+            event.preventDefault();
+            submitform(event);
+            clearInterval(timer);
+            document.getElementById('counter').innerText = "";
+            document.getElementById('counter').style.display = 'none';
+        }
+        else event.preventDefault();
         
     });
-
-
 
 
 

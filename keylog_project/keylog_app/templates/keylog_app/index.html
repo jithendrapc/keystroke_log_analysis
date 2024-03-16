@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Enter Platform</title>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+</head>
+<body>
+  <div class="w3-container">
+    <h1>Welcome to the Keystroke Log Analysis Test Platform</h1>
+    <p>Click the button below to enter the test.</p>
+    <button class="w3-button w3-green" id="admin">Admin</button>
+    <button class="w3-button w3-green" id="user">User</button>
+
+  </div>
+</body>
+
+
+<script>
+    let user = document.getElementById('user')
+    user.addEventListener('click', function() {
+        
+        window.open('http://127.0.0.1:8000/user');
+        
+    });
+
+    let admin = document.getElementById('admin')
+    admin.addEventListener('click', function() {
+        
+        window.open('http://127.0.0.1:8000/admin_login/');
+        
+    });
+</script>
+</html>

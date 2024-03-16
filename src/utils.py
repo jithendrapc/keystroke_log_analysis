@@ -47,7 +47,7 @@ def transform(test_logs):
     test = pd.DataFrame()
     for group_name, group_df in grouped:
         #print(f"Group: {group_name}")
-        
+        test.loc[group_name,'id'] = int(group_name)
         #production rate
         counts = group_df['activity'].value_counts()
         #print(counts.ndim)
@@ -171,7 +171,9 @@ def transform(test_logs):
         process_variance = characters_per_minute_per_interval.std()
 
         test.loc[group_name,'process_variance'] = process_variance
+        
         print(test)
+    
     return test
     
     
